@@ -288,7 +288,6 @@ public class AppointmentServiceImpl implements AppointmentService {
     public List<Appointment> getDoctorAppointments(Long doctorId) {
         return appointmentRepository.findByDoctorIdWithDetails(doctorId);
     }
-
     @Override
     public List<Appointment> getAppointmentsByStatus(AppointmentStatus status) {
         return appointmentRepository.findByStatus(status);
