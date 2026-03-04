@@ -26,7 +26,7 @@ import com.hospital.appointment.validator.StateTransitionValidator;
 @Service
 public class AppointmentServiceImpl implements AppointmentService {
 
-    private static final int RESCHEDULE_CUTOFF_MINUTES = 120; // 2 hours
+    private static final int RESCHEDULE_CUTOFF_MINUTES = 120;
 
     private final AppointmentRepository appointmentRepository;
     private final PaymentRepository paymentRepository;
@@ -54,7 +54,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     // =========================================================
-    // 1️⃣ CONFIRM APPOINTMENT
+    // 1️⃣ CONFIRM APPOINTMENT AFTER PAYMENT
     // =========================================================
     @Override
     @Transactional
@@ -69,20 +69,31 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment appointment = payment.getAppointment();
 
+        if (appointment == null) {
+            throw new BadRequestException("Appointment not linked to payment");
+        }
+
         if (appointment.getStatus() == AppointmentStatus.CONFIRMED) {
-            return appointment; // Idempotent safety
+            return appointment;
         }
 
         stateValidator.validateAppointmentTransition(
                 appointment.getStatus(),
-                AppointmentStatus.CONFIRMED);
+                AppointmentStatus.CONFIRMED
+        );
 
         appointment.setStatus(AppointmentStatus.CONFIRMED);
 
         Slot slot = appointment.getSlot();
+
+        if (slot == null) {
+            throw new BadRequestException("Slot not found for appointment");
+        }
+
         slot.setStatus(SlotStatus.BOOKED);
         slot.setLockedBy(null);
         slot.setLockUntil(null);
+
         slotRepository.save(slot);
 
         Appointment saved = appointmentRepository.save(appointment);
@@ -93,7 +104,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 saved.getId(),
                 "SYSTEM",
                 null,
-                "Appointment confirmed after payment success"
+                "Appointment confirmed after successful payment"
         );
 
         try {
@@ -104,7 +115,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     }
 
     // =========================================================
-    // 2️⃣ PATIENT REQUESTS CANCELLATION
+    // 2️⃣ PATIENT REQUEST CANCELLATION
     // =========================================================
     @Override
     @Transactional
@@ -119,7 +130,8 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         stateValidator.validateAppointmentTransition(
                 appointment.getStatus(),
-                AppointmentStatus.CANCELLATION_REQUESTED);
+                AppointmentStatus.CANCELLATION_REQUESTED
+        );
 
         appointment.setStatus(AppointmentStatus.CANCELLATION_REQUESTED);
 
@@ -152,15 +164,19 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         stateValidator.validateAppointmentTransition(
                 appointment.getStatus(),
-                AppointmentStatus.CANCELLED);
+                AppointmentStatus.CANCELLED
+        );
 
         appointment.setStatus(AppointmentStatus.CANCELLED);
 
         Slot slot = appointment.getSlot();
-        slot.setStatus(SlotStatus.AVAILABLE);
-        slot.setLockedBy(null);
-        slot.setLockUntil(null);
-        slotRepository.save(slot);
+
+        if (slot != null) {
+            slot.setStatus(SlotStatus.AVAILABLE);
+            slot.setLockedBy(null);
+            slot.setLockUntil(null);
+            slotRepository.save(slot);
+        }
 
         Appointment saved = appointmentRepository.save(appointment);
 
@@ -170,13 +186,13 @@ public class AppointmentServiceImpl implements AppointmentService {
 
             stateValidator.validateAppointmentTransition(
                     saved.getStatus(),
-                    AppointmentStatus.REFUND_PENDING);
+                    AppointmentStatus.REFUND_PENDING
+            );
 
             saved.setStatus(AppointmentStatus.REFUND_PENDING);
             appointmentRepository.save(saved);
 
-            refundService.initiateRefund(payment.getId(),
-                    "Approved by hospital");
+            refundService.initiateRefund(payment.getId(), "Approved by hospital");
         }
 
         auditLogService.log(
@@ -185,7 +201,7 @@ public class AppointmentServiceImpl implements AppointmentService {
                 saved.getId(),
                 "ADMIN",
                 null,
-                "Slot released"
+                "Slot released and refund initiated"
         );
 
         return saved;
@@ -213,19 +229,18 @@ public class AppointmentServiceImpl implements AppointmentService {
         Slot currentSlot = appointment.getSlot();
 
         LocalDateTime appointmentDateTime =
-                LocalDateTime.of(currentSlot.getSlotDate(),
-                                 currentSlot.getStartTime());
+                LocalDateTime.of(currentSlot.getSlotDate(), currentSlot.getStartTime());
 
         if (LocalDateTime.now()
                 .isAfter(appointmentDateTime.minusMinutes(RESCHEDULE_CUTOFF_MINUTES))) {
             throw new BadRequestException("Reschedule window closed");
         }
 
-        // Lock new slot safely
         int locked = slotRepository.lockSlot(
                 newSlotId,
                 patientId,
-                LocalDateTime.now().plusMinutes(10));
+                LocalDateTime.now().plusMinutes(10)
+        );
 
         if (locked == 0) {
             throw new BadRequestException("New slot unavailable");
@@ -234,13 +249,11 @@ public class AppointmentServiceImpl implements AppointmentService {
         Slot newSlot = slotRepository.findById(newSlotId)
                 .orElseThrow(() -> new ResourceNotFoundException("Slot not found"));
 
-        // Release old slot
         currentSlot.setStatus(SlotStatus.AVAILABLE);
         currentSlot.setLockedBy(null);
         currentSlot.setLockUntil(null);
         slotRepository.save(currentSlot);
 
-        // Permanently assign new slot
         newSlot.setStatus(SlotStatus.BOOKED);
         newSlot.setLockedBy(null);
         newSlot.setLockUntil(null);
@@ -265,14 +278,15 @@ public class AppointmentServiceImpl implements AppointmentService {
     // =========================================================
     // 5️⃣ HISTORY APIs
     // =========================================================
+
     @Override
     public List<Appointment> getPatientAppointments(Long patientId) {
-        return appointmentRepository.findByPatientIdOrderByCreatedAtDesc(patientId);
+        return appointmentRepository.findByPatientIdWithDetails(patientId);
     }
 
     @Override
     public List<Appointment> getDoctorAppointments(Long doctorId) {
-        return appointmentRepository.findByDoctorIdOrderByCreatedAtDesc(doctorId);
+        return appointmentRepository.findByDoctorIdWithDetails(doctorId);
     }
 
     @Override

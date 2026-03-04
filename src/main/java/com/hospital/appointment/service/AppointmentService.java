@@ -18,12 +18,15 @@ public interface AppointmentService {
     Appointment cancelAppointment(Long appointmentId, String reason);
 
     // =========================================================
-    // HISTORY & ADMIN
+    // HISTORY & DASHBOARDS
     // =========================================================
 
+    // Patient appointment history (Profile Page)
     List<Appointment> getPatientAppointments(Long patientId);
 
+    // Doctor appointment history (Doctor Dashboard)
     List<Appointment> getDoctorAppointments(Long doctorId);
 
+    // Admin filter by status
     List<Appointment> getAppointmentsByStatus(AppointmentStatus status);
 }
