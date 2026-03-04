@@ -33,7 +33,7 @@ public class PaymentExpiryScheduler {
     }
 
  // Runs every 1 minute
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedDelay = 60000)
     @Transactional
     public void expirePayments() {
 

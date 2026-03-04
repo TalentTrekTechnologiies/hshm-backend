@@ -17,9 +17,8 @@ public class SlotLockCleanupScheduler {
     }
 
     // Runs every 60 seconds
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(fixedDelay = 60000)
     public void releaseExpiredLockedSlots() {
-
         int released = slotRepository.releaseExpiredLocks(LocalDateTime.now());
 
         if (released > 0) {

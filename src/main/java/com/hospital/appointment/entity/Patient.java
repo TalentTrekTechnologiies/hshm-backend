@@ -1,8 +1,13 @@
 package com.hospital.appointment.entity;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 import jakarta.persistence.*;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Entity
 @Table(
@@ -12,6 +17,7 @@ import jakarta.persistence.*;
         @UniqueConstraint(name = "uk_patient_email", columnNames = "email")
     }
 )
+@JsonIgnoreProperties({"familyMembers"})
 public class Patient {
 
     @Id
@@ -33,12 +39,32 @@ public class Patient {
     @Column(nullable = false)
     private Integer age;
 
-    // ✅ NEW
     @Column(nullable = false, length = 10)
-    private String gender; // MALE / FEMALE / OTHER
+    private String gender;
 
-    // ✅ NEW
+    @Column(name = "date_of_birth")
+    private LocalDate dateOfBirth;
+
+    @Column(length = 5)
+    private String bloodGroup;
+
+    @Column(length = 200)
+    private String address;
+
+    @Column(length = 100)
+    private String city;
+
+    @Column(length = 100)
+    private String state;
+
+    @Column(length = 10)
+    private String pincode;
+
+    @Column(name = "emergency_contact", length = 15)
+    private String emergencyContact;
+
     @Column(name = "password_hash", length = 200)
+    @JsonIgnore
     private String passwordHash;
 
     @Column(name = "created_at", nullable = false)
@@ -50,6 +76,16 @@ public class Patient {
     @Column(nullable = false)
     private boolean active = true;
 
+    // ================= FAMILY RELATION =================
+
+    @ManyToOne
+    @JoinColumn(name = "parent_id")
+    @JsonIgnore
+    private Patient parent;
+
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL)
+    private List<Patient> familyMembers;
+
     public Patient() {
     }
 
@@ -58,85 +94,63 @@ public class Patient {
         this.createdAt = LocalDateTime.now();
     }
 
-    // ---------------- GETTERS / SETTERS ----------------
+    // ================= GETTERS & SETTERS =================
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
-    public String getPatientCode() {
-        return patientCode;
-    }
+    public String getPatientCode() { return patientCode; }
+    public void setPatientCode(String patientCode) { this.patientCode = patientCode; }
 
-    public void setPatientCode(String patientCode) {
-        this.patientCode = patientCode;
-    }
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
 
-    public String getName() {
-        return name;
-    }
+    public String getPhone() { return phone; }
+    public void setPhone(String phone) { this.phone = phone; }
 
-    public void setName(String name) {
-        this.name = name;
-    }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
-    public String getPhone() {
-        return phone;
-    }
+    public Integer getAge() { return age; }
+    public void setAge(Integer age) { this.age = age; }
 
-    public void setPhone(String phone) {
-        this.phone = phone;
-    }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
 
-    public String getEmail() {
-        return email;
-    }
+    public LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+    public String getBloodGroup() { return bloodGroup; }
+    public void setBloodGroup(String bloodGroup) { this.bloodGroup = bloodGroup; }
 
-    public Integer getAge() {
-        return age;
-    }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
 
-    public void setAge(Integer age) {
-        this.age = age;
-    }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
 
-    public String getGender() {
-        return gender;
-    }
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
 
-    public void setGender(String gender) {
-        this.gender = gender;
-    }
+    public String getPincode() { return pincode; }
+    public void setPincode(String pincode) { this.pincode = pincode; }
 
-    public String getPasswordHash() {
-        return passwordHash;
-    }
+    public String getEmergencyContact() { return emergencyContact; }
+    public void setEmergencyContact(String emergencyContact) { this.emergencyContact = emergencyContact; }
 
-    public void setPasswordHash(String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
+    public String getPasswordHash() { return passwordHash; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 
-    public boolean isOtpVerified() {
-        return otpVerified;
-    }
+    public boolean isOtpVerified() { return otpVerified; }
+    public void setOtpVerified(boolean otpVerified) { this.otpVerified = otpVerified; }
 
-    public void setOtpVerified(boolean otpVerified) {
-        this.otpVerified = otpVerified;
-    }
+    public boolean isActive() { return active; }
+    public void setActive(boolean active) { this.active = active; }
 
-    public boolean isActive() {
-        return active;
-    }
+    public Patient getParent() { return parent; }
+    public void setParent(Patient parent) { this.parent = parent; }
 
-    public void setActive(boolean active) {
-        this.active = active;
-    }
+    public List<Patient> getFamilyMembers() { return familyMembers; }
+    public void setFamilyMembers(List<Patient> familyMembers) { this.familyMembers = familyMembers; }
 }
